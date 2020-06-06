@@ -31,6 +31,7 @@
 #include<stdint.h>
 #include<string.h>
 #include<stdlib.h>
+#include <unistd.h>
 #include <isa-l/crc.h>
 #include <isa-l/crc64.h>
 #include <isa-l/erasure_code.h>
@@ -128,26 +129,33 @@ int main(int argc, char *argv[])
     // ret = pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);
     // 编码
     ref_multi_pq(TEST_SOURCES + 2, TEST_LEN, buffs);
-    int test_times = 100;
+    int test_times = 1;
     // 使用自带的测试程序
     BENCHMARK(&start, test_times, pq_check(TEST_SOURCES + 2, TEST_LEN, buffs););
     perf_print(start, (long long)TEST_MEM);
+    time_t starttime2 = clock();
     long long starttime = get_time();
     for (int i = 0; i < test_times; i++)
     {
         // ref_multi_pq(TEST_SOURCES + 2, TEST_LEN, buffs);
         // pq_gen_avx(TEST_SOURCES + 2, TEST_LEN, buffs);
         // 校验
-        // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs); // 3.769935Mbps
-        ret = pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);      // 63.454293Mbps
-        // ret = pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);    // 66.499725Mbps
+        // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
+        ret = pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);     
+        // ret = pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);   
         // printf("有效数据量%dx%d\n", TEST_SOURCES, TEST_LEN);
     }
     long long endtime = get_time();
+    time_t endtime2 = clock();
+    long long clock_ms = endtime2 - starttime2;
     long long nsec = endtime - starttime;
     long long usec = nsec / 1000000;
+    
+    printf("clock():%lld\n", clock_ms);
+    printf("clock_gettime():%lld\n", nsec);
     printf("校验耗时%lldus\n", usec);
     printf("吞吐率%fMB/s\n", ((GT_L3_CACHE / 1024 / 1024) * test_times) * 1.0 / nsec * 1000000000);
+    printf("吞吐率%fMB/s\n", ((GT_L3_CACHE / 1024 / 1024) * test_times) * 1.0 / clock_ms * 1000000);
     // printf("吞吐率%fMbps\n", (TEST_LEN / 1024 / 1024 * TEST_SOURCES *  8 * 1.0 * test_times) / sum * 1000);
     // c = ((char *)(buffs[0]))[TEST_LEN - 2];
 	// ((char *)(buffs[0]))[TEST_LEN - 2] = c ^ 0x1;
