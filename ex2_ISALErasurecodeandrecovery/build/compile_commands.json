@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/main.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/main.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/main.cpp"
+},
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/measurements.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/measurements.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/measurements.cpp"
+},
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/options.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/options.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/options.cpp"
+},
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/prealloc.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/prealloc.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/prealloc.cpp"
+},
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/size.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/size.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/size.cpp"
+},
+{
+  "directory": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/build",
+  "command": "/usr/bin/c++   -isystem /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/./libs/usr/include   -std=c++14 -O3 -DNDEBUG   -o CMakeFiles/ex2.dir/src/utils.cpp.o -c /home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/utils.cpp",
+  "file": "/home/sl/isa-l/ex2_ISALErasurecodeandrecovery/src/utils.cpp"
+}
+]

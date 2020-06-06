@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
 	// Allocate the arrays
 	for (i = 0; i < TEST_SOURCES + 2; i++) {
 		void *buf;
+		// posix_memalign返回TEST_LEN长度的buffer，地址是16的倍数
 		if (posix_memalign(&buf, 16, TEST_LEN)) {
 			printf("alloc error: Fail");
 			return 1;
