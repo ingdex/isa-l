@@ -1,3 +1,8 @@
+在myRaid6Test目录下编写了测试raid6性能的程序raid6.c
+编译链接命令: gcc -o Demo raid6.c /usr/lib/libisal.so
+运行: ./Demo
+测试结果: 约等于12GB/s
+
 Intel(R) Intelligent Storage Acceleration Library
 =================================================
 
