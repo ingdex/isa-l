@@ -39,8 +39,10 @@
 #include <isa-l/igzip_lib.h>
 #include <isa-l/raid.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <isa-l/test.h>
+#include <errno.h>
 
 #define TEST_SOURCES 10
 #define GT_L3_CACHE 32 * 1024 * 1024 /* some number > last level cache */
@@ -51,7 +53,8 @@
 #define TEST_SEED 0x1234
 #endif
 #define TEST_TYPE_STR "_cold"
-#define TEST_TIMES 20
+#define TEST_TIMES 10000
+#define PID_NUM 40
 
 // Generates pseudo-random data
 
@@ -68,7 +71,7 @@ static inline int do_test_pq_check(void **buffs)
   {
     // 校验
     // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
-    int ret = pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);
+    pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);
     // ret = pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
   }
 }
@@ -100,22 +103,46 @@ int main(int argc, char *argv[])
     }
     buffs[i] = buf;
   }
-  // Test rand1
+  // Test rand
   // 产生随机数
   for (i = 0; i < TEST_SOURCES + 2; i++)
     rand_buffer((unsigned char *)buffs[i], TEST_LEN);
   // 编码
   pq_gen_avx(TEST_SOURCES + 2, TEST_LEN, buffs);
+  // BENCHMARK(&start, TEST_TIMES, pq_check(TEST_SOURCES + 2, TEST_LEN, buffs));
+  // perf_print(start, (long long)TEST_MEM);
+  pid_t pid[PID_NUM];
+  pid_t tmpPid;
+  int errno;
+  int status = 0;
   long long starttime = get_time();
-  // pid_t pid[]
-
-  do_test_pq_check(buffs);
-  // for (int i = 0; i < TEST_TIMES; i++)
+  for (int i=0; i<PID_NUM; i++)
+  {
+    pid[i] = fork();
+    if (pid[i] > 0)
+    {
+      continue;
+    }
+    else if (pid[i] == 0)
+    {
+      do_test_pq_check(buffs);
+      exit(0);
+    }
+    else
+    {
+      printf("fork() failed\n");
+      break;
+    }
+  }
+  // do_test_pq_check(buffs);
+  // wait(NULL);
+  while ((tmpPid = wait(&status)) > 0);
+  // while (tmpPid = waitpid(-1, NULL, 0))
   // {
-  //   // 校验
-  //   // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
-  //   pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);
-  //   // ret = pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
+  //   if (errno == ECHILD)
+  //   {
+  //     break;
+  //   }
   // }
   long long endtime = get_time();
   long long nsec = endtime - starttime;
@@ -123,8 +150,7 @@ int main(int argc, char *argv[])
 
   printf("clock_gettime():%lld\n", nsec);
   printf("校验耗时%lldus\n", usec);
-  printf("吞吐率%fMB/s\n", ((GT_L3_CACHE / 1024 / 1024) * TEST_TIMES) * 1.0 / nsec * 1000000000);
-  // printf("吞吐率%fMbps\n", (TEST_LEN / 1024 / 1024 * TEST_SOURCES *  8 * 1.0 * test_times) / sum * 1000);
+  printf("吞吐率%fMB/s\n", PID_NUM * ((GT_L3_CACHE / 1024 / 1024) * TEST_TIMES) * 1.0 / nsec * 1000000000);
 
   return 0;
 }
