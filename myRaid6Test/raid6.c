@@ -53,8 +53,9 @@
 #define TEST_SEED 0x1234
 #endif
 #define TEST_TYPE_STR "_cold"
-#define TEST_TIMES 10000
+#define TEST_TIMES 100000
 #define PID_NUM 40
+#define UNIT 35 // 每次申请子进程，逐步减少的循环次数
 
 // Generates pseudo-random data
 
@@ -65,9 +66,9 @@ static void rand_buffer(unsigned char *buf, long buffer_size)
     buf[i] = rand();
 }
 
-static inline int do_test_pq_check(void **buffs)
+static inline int do_test_pq_check(void **buffs, int test_times)
 {
-  for (int i = 0; i < TEST_TIMES; i++)
+  for (int i = 0; i < test_times; i++)
   {
     // 校验
     // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
@@ -115,6 +116,11 @@ int main(int argc, char *argv[])
   pid_t tmpPid;
   int errno;
   int status = 0;
+  long long real_times = 0;
+  for (int i=0; i<PID_NUM; i++)
+  {
+    real_times += TEST_TIMES - i * UNIT;
+  }
   long long starttime = get_time();
   for (int i=0; i<PID_NUM; i++)
   {
@@ -125,7 +131,7 @@ int main(int argc, char *argv[])
     }
     else if (pid[i] == 0)
     {
-      do_test_pq_check(buffs);
+      do_test_pq_check(buffs, TEST_TIMES - i * UNIT);
       exit(0);
     }
     else
@@ -148,9 +154,12 @@ int main(int argc, char *argv[])
   long long nsec = endtime - starttime;
   long long usec = nsec / 1000000;
 
-  printf("clock_gettime():%lld\n", nsec);
+  // printf("clock_gettime():%lld\n", nsec);
   printf("校验耗时%lldus\n", usec);
-  printf("吞吐率%fMB/s\n", PID_NUM * ((GT_L3_CACHE / 1024 / 1024) * TEST_TIMES) * 1.0 / nsec * 1000000000);
+  long long MEM = (((GT_L3_CACHE / 1024 / 1024) * TEST_TIMES) + ((GT_L3_CACHE / 1024 / 1024) * (TEST_TIMES - (PID_NUM - 1) * UNIT))) * PID_NUM / 2;
+  printf("MEM%lldMB\n", MEM);
+  printf("MEM%lldMB\n", (GT_L3_CACHE / 1024 / 1024) * real_times);
+  printf("吞吐率%fMB/s\n", MEM * 1.0 / nsec * 1000000000);
 
   return 0;
 }
