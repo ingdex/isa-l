@@ -72,13 +72,13 @@
 #define TEST_SOURCES 8  // 磁盘数量，实际使用的磁盘数量还需加2，用于存储PQ校验数据
 // #define GT_L3_CACHE 32 * 1024 * 1024 /* some number > last level cache 总磁盘容量*/
 // #define TEST_LEN ((GT_L3_CACHE / (TEST_SOURCES + 2)) & ~(64 - 1)) // 单个磁盘容量
-#define TEST_LEN 1 * 1024 * 1024 
+#define TEST_LEN 4 * 1024 * 1024
 #define TEST_MEM ((TEST_SOURCES + 2) * (TEST_LEN))  // 定义了ALL_IN_CACHE后待校验数据占用的内存空间大小
 #ifndef TEST_SEED
 #define TEST_SEED 0x1234
 #endif
 #define TEST_TYPE_STR "_cold"
-#define TEST_TIMES 10240
+#define TEST_TIMES 1024
 #define PID_NUM 32  // 线程数
 #define UNIT 2     // 每次申请子进程，逐步减少的循环次数
 
@@ -102,8 +102,8 @@ static inline int do_test_pq_check(void **buffs, int test_times)
     pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
 #else
     // printf("debug\n");
-    // pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
-    pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
+    pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
+    // pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
 #endif
   }
 }
