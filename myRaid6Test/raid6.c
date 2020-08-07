@@ -1,5 +1,5 @@
 /**********************************************************************
-  Copyright(c) 2011-2015 Intel Corporation All rights reserved.
+  Copyright(c) 2020 Sun Lei All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
       notice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Sun Lei nor the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -26,6 +26,10 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **********************************************************************/
+
+/**
+ * raid6测试 
+ */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -44,21 +48,20 @@
 #include <isa-l/test.h>
 #include <errno.h>
 
-#define TEST_SOURCES 10
-#define GT_L3_CACHE 32 * 1024 * 1024 /* some number > last level cache */
-#define TEST_LEN ((GT_L3_CACHE / TEST_SOURCES) & ~(64 - 1))
-// #define TEST_LEN 1024
+#define TEST_SOURCES 8  // 磁盘数量
+// #define GT_L3_CACHE 32 * 1024 * 1024 /* some number > last level cache 总磁盘容量*/
+// #define TEST_LEN ((GT_L3_CACHE / TEST_SOURCES) & ~(64 - 1)) // 单个磁盘容量
+#define TEST_LEN 2 * 1024 * 1024
 #define TEST_MEM ((TEST_SOURCES + 2) * (TEST_LEN))
 #ifndef TEST_SEED
 #define TEST_SEED 0x1234
 #endif
 #define TEST_TYPE_STR "_cold"
-#define TEST_TIMES 100000
-#define PID_NUM 40
-#define UNIT 35 // 每次申请子进程，逐步减少的循环次数
+#define TEST_TIMES 1024
+#define PID_NUM 32  // 线程数
+#define UNIT 0     // 每次申请子进程，逐步减少的循环次数
 
 // Generates pseudo-random data
-
 static void rand_buffer(unsigned char *buf, long buffer_size)
 {
   long i;
@@ -73,7 +76,7 @@ static inline int do_test_pq_check(void **buffs, int test_times)
     // 校验
     // ret = pq_check_base(TEST_SOURCES + 2, TEST_LEN, buffs);
     pq_check(TEST_SOURCES + 2, TEST_LEN, buffs);
-    // ret = pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
+    // pq_check_sse(TEST_SOURCES + 2, TEST_LEN, buffs);
   }
 }
 
@@ -108,7 +111,7 @@ int main(int argc, char *argv[])
   // 产生随机数
   for (i = 0; i < TEST_SOURCES + 2; i++)
     rand_buffer((unsigned char *)buffs[i], TEST_LEN);
-  // 编码
+  // raid6编码
   pq_gen_avx(TEST_SOURCES + 2, TEST_LEN, buffs);
   // BENCHMARK(&start, TEST_TIMES, pq_check(TEST_SOURCES + 2, TEST_LEN, buffs));
   // perf_print(start, (long long)TEST_MEM);
@@ -117,12 +120,13 @@ int main(int argc, char *argv[])
   int errno;
   int status = 0;
   long long real_times = 0;
-  for (int i=0; i<PID_NUM; i++)
+  for (int i = 0; i < PID_NUM; i++)
   {
     real_times += TEST_TIMES - i * UNIT;
   }
+  // get_time()由isa-l库定义，调用了clock_gettime，结果以纳秒为单位
   long long starttime = get_time();
-  for (int i=0; i<PID_NUM; i++)
+  for (int i = 0; i < PID_NUM; i++)
   {
     pid[i] = fork();
     if (pid[i] > 0)
@@ -142,7 +146,8 @@ int main(int argc, char *argv[])
   }
   // do_test_pq_check(buffs);
   // wait(NULL);
-  while ((tmpPid = wait(&status)) > 0);
+  while ((tmpPid = wait(&status)) > 0)
+    ;
   // while (tmpPid = waitpid(-1, NULL, 0))
   // {
   //   if (errno == ECHILD)
@@ -152,14 +157,18 @@ int main(int argc, char *argv[])
   // }
   long long endtime = get_time();
   long long nsec = endtime - starttime;
-  long long usec = nsec / 1000000;
+  long long msec = nsec / 1000000;
 
   // printf("clock_gettime():%lld\n", nsec);
-  printf("校验耗时%lldus\n", usec);
-  long long MEM = (((GT_L3_CACHE / 1024 / 1024) * TEST_TIMES) + ((GT_L3_CACHE / 1024 / 1024) * (TEST_TIMES - (PID_NUM - 1) * UNIT))) * PID_NUM / 2;
+  printf("校验耗时%lldms\n", msec);
+  long long MEM;
+  if (TEST_LEN > 1024 * 1024)
+    MEM = (TEST_LEN / 1024 / 1024 * TEST_SOURCES) * real_times;
+  else
+    MEM = (TEST_LEN * TEST_SOURCES / 1024) * real_times / 1024;
+  // MEM = (((TEST_LEN * TEST_SOURCES / 1024) * TEST_TIMES / 1024) + ((TEST_LEN * TEST_SOURCES / 1024 / 1024) * (TEST_TIMES - (PID_NUM - 1) * UNIT))) * PID_NUM / 2;
   printf("MEM%lldMB\n", MEM);
-  printf("MEM%lldMB\n", (GT_L3_CACHE / 1024 / 1024) * real_times);
   printf("吞吐率%fMB/s\n", MEM * 1.0 / nsec * 1000000000);
-
+  printf("吞吐率%fGB/s\n", MEM * 1.0 / nsec * 1000000000 / 1024);
   return 0;
 }
