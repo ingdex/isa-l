@@ -37,13 +37,13 @@
 #include "test.h"
 #include "tools.h"
 
-// #define CACHED_TEST
+#define CACHED_TEST
 #ifdef CACHED_TEST
 // Cached test, loop many times over small dataset
 # define TEST_SOURCES 15
-# define TEST_LEN  ((256*1024 / (TEST_SOURCES + 1)) & ~(64-1))
+# define TEST_LEN  (long long)((256*1024 / (TEST_SOURCES + 1)) & ~(64-1))
 #define TEST_TYPE_STR "_warm"
-#define REAPET_TIME 200000
+#define REPEAT_TIME 200000
 #else
 #ifndef TEST_CUSTOM
 // Uncached test.  Pull from large mem base.
@@ -51,7 +51,7 @@
 #  define GT_L3_CACHE  ((long long)1024*1024*1024)	/* some number > last level cache */
 #  define TEST_LEN ((GT_L3_CACHE / (TEST_SOURCES + 1)) & ~(64 - 1))
 #  define TEST_TYPE_STR "_cold"
-#define REAPET_TIME 8
+#define REPEAT_TIME 8
 #else
 #define TEST_TYPE_STR "_cus"
 #endif
@@ -80,7 +80,7 @@ void *encode_thread_handle(void *args)
     // printf("data->len = %lu\n", data->len);
     // printf("data->buffs = %p\n", data->buffs);
 	int iter = 0;
-	while(iter++ < REAPET_TIME)
+	while(iter++ < data->repeat_time)
 		xor_gen(TEST_SOURCES + 1, data->len, data->buffs);
 	return NULL;
 }
@@ -100,7 +100,7 @@ double xor_encode_perf(void ** buffs, int THREADS)
 		threadData data;
 		// Start encode test
 		data.threadId = 0;
-		data.repeat_time = REAPET_TIME; // 同一份数据重复编译码的次数
+		data.repeat_time = REPEAT_TIME; // 同一份数据重复编译码的次数
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN;
 		for (int j = 0; j < TEST_SOURCES + 1; j++)
@@ -141,7 +141,7 @@ double xor_encode_perf(void ** buffs, int THREADS)
 		for (int i = 0; i < THREADS; i++)
 		{
 			data[i].threadId = i;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -227,7 +227,7 @@ double xor_check_perf(void ** buffs, int THREADS)
 		threadData data;
 		// Start encode test
 		data.threadId = 0;
-		data.repeat_time = REAPET_TIME; // 同一份数据重复编译码的次数
+		data.repeat_time = REPEAT_TIME; // 同一份数据重复编译码的次数
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN;
 		for (int j = 0; j < TEST_SOURCES + 1; j++)
@@ -267,7 +267,7 @@ double xor_check_perf(void ** buffs, int THREADS)
 		for (int i = 0; i < THREADS; i++)
 		{
 			data[i].threadId = i;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -355,14 +355,14 @@ int main(int argc, char *argv[])
     // Start encode test
     printf("start encode\n");
     double total = xor_encode_perf(buffs, THREADS);
-    printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)TEST_MEM * REAPET_TIME, total, "xor_gen" TEST_TYPE_STR ": ");
+    printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)TEST_MEM * REPEAT_TIME, total, "xor_gen" TEST_TYPE_STR ": ");
     
     // xor_check test
 	printf("start xor_check\n");
     total = xor_check_perf(buffs, THREADS);
-    printf("xor_check ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)TEST_MEM * REAPET_TIME, total, "xor_check" TEST_TYPE_STR ": ");
+    printf("xor_check ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)TEST_MEM * REPEAT_TIME, total, "xor_check" TEST_TYPE_STR ": ");
     // Warm up
     // BENCHMARK(&start, BENCHMARK_TIME, xor_gen(TEST_SOURCES + 1, TEST_LEN, buffs));
     // printf("xor_gen" TEST_TYPE_STR ": ");

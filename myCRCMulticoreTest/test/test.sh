@@ -9,11 +9,11 @@ threads=(0 2 4 8 16 32)
 # 每种情况测试次数
 test_time=10
 # 测试程序路径
-name="xor_perf"
+name="crc_ieee_perf"
 path="../$name"
 # 测试模式（冷数据/热数据）
-# pattern="warm"
-pattern="cold"
+pattern="warm"
+# pattern="cold"
 # 测试结果路径
 time=$(TZ=UTC-8 date "+%Y%m%d-%H:%M")
 resultPath=results/${name}_${pattern}_${time}
@@ -34,8 +34,6 @@ i=0
 while read line
 do
     encode_t[i]=$line
-    read line
-    decode_t[i]=$line
     let i++
 done < log
 
@@ -58,16 +56,16 @@ do
     echo >> $resultPath
 done
 
-echo >> $resultPath
-echo decode >> $resultPath
-pos=0
-for ((i=0;i<$test_time;i++));
-do
-    for ((j=0;j<${#threads[@]};j++));
-    do
-        echo -e "${decode_t[pos]}\t\c" >> $resultPath
-        let pos++
-    done
-    echo >> $resultPath
-done
+# echo >> $resultPath
+# echo decode >> $resultPath
+# pos=0
+# for ((i=0;i<$test_time;i++));
+# do
+#     for ((j=0;j<${#threads[@]};j++));
+#     do
+#         echo -e "${decode_t[pos]}\t\c" >> $resultPath
+#         let pos++
+#     done
+#     echo >> $resultPath
+# done
 

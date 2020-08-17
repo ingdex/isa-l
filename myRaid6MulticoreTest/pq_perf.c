@@ -43,7 +43,7 @@
 # define TEST_SOURCES 14
 # define TEST_LEN  ((256*1024 / (TEST_SOURCES + 2)) & ~(64-1))
 #define TEST_TYPE_STR "_warm"
-#define REAPET_TIME 1200000
+#define REPEAT_TIME 1200000
 #else
 #ifndef TEST_CUSTOM
 // Uncached test.  Pull from large mem base.
@@ -51,7 +51,7 @@
 #  define GT_L3_CACHE  1024*1024*1024	/* some number > last level cache */
 #  define TEST_LEN ((GT_L3_CACHE / (TEST_SOURCES + 2)) & ~(64 - 1))
 #  define TEST_TYPE_STR "_cold"
-#define REAPET_TIME 10
+#define REPEAT_TIME 10
 #else
 #define TEST_TYPE_STR "_cus"
 #endif
@@ -80,7 +80,7 @@ void *encode_thread_handle(void *args)
     // printf("data->len = %lu\n", data->len);
     // printf("data->buffs = %p\n", data->buffs);
 	int iter = 0;
-	while(iter++ < REAPET_TIME)
+	while(iter++ < data->repeat_time)
 		pq_gen(TEST_SOURCES + 2, data->len, data->buffs);
 	return NULL;
 }
@@ -100,7 +100,7 @@ double pq_encode_perf(void ** buffs, int THREADS)
 		threadData data;
 		// Start encode test
 		data.threadId = 0;
-		data.repeat_time = REAPET_TIME; // 同一份数据重复编译码的次数
+		data.repeat_time = REPEAT_TIME; // 同一份数据重复编译码的次数
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN;
 		for (int j = 0; j < TEST_SOURCES + 2; j++)
@@ -141,7 +141,7 @@ double pq_encode_perf(void ** buffs, int THREADS)
 		for (int i = 0; i < THREADS; i++)
 		{
 			data[i].threadId = i;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -227,7 +227,7 @@ double pq_check_perf(void ** buffs, int THREADS)
 		threadData data;
 		// Start encode test
 		data.threadId = 0;
-		data.repeat_time = REAPET_TIME; // 同一份数据重复编译码的次数
+		data.repeat_time = REPEAT_TIME; // 同一份数据重复编译码的次数
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN;
 		for (int j = 0; j < TEST_SOURCES + 2; j++)
@@ -267,7 +267,7 @@ double pq_check_perf(void ** buffs, int THREADS)
 		for (int i = 0; i < THREADS; i++)
 		{
 			data[i].threadId = i;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -355,14 +355,14 @@ int main(int argc, char *argv[])
     // Start encode test
     printf("start encode\n");
     double total = pq_encode_perf(buffs, THREADS);
-    printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)TEST_MEM * REAPET_TIME, total, "pq_gen" TEST_TYPE_STR ": ");
+    printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)TEST_MEM * REPEAT_TIME, total, "pq_gen" TEST_TYPE_STR ": ");
     
     // pq_check test
 	printf("start pq_check\n");
     total = pq_check_perf(buffs, THREADS);
-    printf("pq_check ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)TEST_MEM * REAPET_TIME, total, "pq_check" TEST_TYPE_STR ": ");
+    printf("pq_check ended, bandwidth %lld MB in %lf secs\n", ((long long)TEST_MEM * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)TEST_MEM * REPEAT_TIME, total, "pq_check" TEST_TYPE_STR ": ");
     // Warm up
     // BENCHMARK(&start, BENCHMARK_TIME, pq_gen(TEST_SOURCES + 2, TEST_LEN, buffs));
     // printf("pq_gen" TEST_TYPE_STR ": ");

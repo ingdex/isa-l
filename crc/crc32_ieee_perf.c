@@ -35,7 +35,7 @@
 #include "crc.h"
 #include "test.h"
 
-//#define CACHED_TEST
+// #define CACHED_TEST
 #ifdef CACHED_TEST
 // Cached test, loop many times over small dataset
 # define TEST_LEN     8*1024

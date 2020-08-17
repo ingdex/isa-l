@@ -45,7 +45,7 @@
 # define TEST_SOURCES 32
 # define TEST_LEN(m)  ((256*1024 / m) & ~(64-1))
 # define TEST_TYPE_STR "_warm"
-#define REAPET_TIME 300000
+#define REPEAT_TIME 300000
 #else
 # ifndef TEST_CUSTOM
 // Uncached test.  Pull from large mem base.
@@ -53,7 +53,7 @@
 #  define GT_L3_CACHE  1024*1024*1024	/* some number > last level cache */
 #  define TEST_LEN(m)  ((GT_L3_CACHE / m) & ~(64-1))
 #  define TEST_TYPE_STR "_cold"
-#define REAPET_TIME 1
+#define REPEAT_TIME 1
 # else
 #  define TEST_TYPE_STR "_cus"
 # endif
@@ -134,7 +134,7 @@ double ec_encode_perf(int m, int k, u8 * a, u8 * g_tbls, u8 ** buffs, int THREAD
 		data.m = m;
 		data.a = a;
 		data.g_tbls = g_tbls;
-		data.repeat_time = REAPET_TIME; // 同一份数据重复编译码的次数
+		data.repeat_time = REPEAT_TIME; // 同一份数据重复编译码的次数
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN(m);
 		for (int j = 0; j < m; j++)
@@ -179,7 +179,7 @@ double ec_encode_perf(int m, int k, u8 * a, u8 * g_tbls, u8 ** buffs, int THREAD
 			data[i].m = m;
 			data[i].a = a;
 			data[i].g_tbls = g_tbls;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -312,7 +312,7 @@ double ec_decode_perf(int m, int k, u8 * a, u8 * g_tbls, u8 ** buffs, u8 * src_i
 		// 计算子进程的在单位源数据单元中参与编码的长度
 		data.len = TEST_LEN(m);
 		// 同一份数据重复编译码的次数
-		data.repeat_time = REAPET_TIME; 
+		data.repeat_time = REPEAT_TIME; 
 		for (i = 0; i < k; i++)
 		{
 			data.recov[i] = recov[i];
@@ -356,7 +356,7 @@ double ec_decode_perf(int m, int k, u8 * a, u8 * g_tbls, u8 ** buffs, u8 * src_i
 			data[i].k = k;
 			data[i].nerrs = nerrs;
 			data[i].g_tbls = g_tbls;
-			data[i].repeat_time = REAPET_TIME;	// 同一份数据重复编译码的次数
+			data[i].repeat_time = REPEAT_TIME;	// 同一份数据重复编译码的次数
 			// 计算子进程的在单位源数据单元中参与编码的长度
 			if (i)
 			{
@@ -483,8 +483,8 @@ int main(int argc, char *argv[])
 	// encode test
 	printf("start encode\n");
 	double total = ec_encode_perf(m, k, a, g_tbls, buffs, THREADS);
-	printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)(TEST_LEN(m)) * (m) * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)(TEST_LEN(m)) * (m) * REAPET_TIME, total, "erasure_code_encode" TEST_TYPE_STR ": ");
+	printf("encode ended, bandwidth %lld MB in %lf secs\n", ((long long)(TEST_LEN(m)) * (m) * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)(TEST_LEN(m)) * (m) * REPEAT_TIME, total, "erasure_code_encode" TEST_TYPE_STR ": ");
 	
 	// decode test
 	printf("start decode\n");
@@ -505,8 +505,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("decode ended, bandwidth %lld MB in %lf secs\n", ((long long)(TEST_LEN(m)) * (k + nerrs) * REAPET_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)(TEST_LEN(m)) * (k + nerrs) * REAPET_TIME, total, "erasure_code_decode" TEST_TYPE_STR ": ");
+	printf("decode ended, bandwidth %lld MB in %lf secs\n", ((long long)(TEST_LEN(m)) * (k + nerrs) * REPEAT_TIME) / 1024 / 1024, total);
+	print_throughtput((long long)(TEST_LEN(m)) * (k + nerrs) * REPEAT_TIME, total, "erasure_code_decode" TEST_TYPE_STR ": ");
 
 	printf("done all: Pass\n");
 	return 0;
