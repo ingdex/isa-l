@@ -78,12 +78,12 @@
 #define TEST_SEED 0x1234
 #endif
 #define TEST_TYPE_STR "_cold"
-#define TEST_TIMES 1024
+#define TEST_TIMES 64
 #define PID_NUM 32  // 线程数
-#define UNIT 2     // 每次申请子进程，逐步减少的循环次数
+#define UNIT 1     // 每次申请子进程，逐步减少的循环次数
 
 #define ALL_IN_CACHE  // 各个线程访问相同地址空间，总地址空间较小的情况下所有数据将来自Cache，只测试CPU计算性能
-// #define CHECK_BASELINE  // 校验时调用pq_check_base，注释掉则调用pq_check_sse
+#define CHECK_BASELINE  // 校验时调用pq_check_base，注释掉则调用pq_check_sse
 
 // Generates pseudo-random data
 static void rand_buffer(unsigned char *buf, long buffer_size)

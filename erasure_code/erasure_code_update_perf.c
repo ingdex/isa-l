@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 	}
-
+#define DO_REF_PERF
 #ifdef DO_REF_PERF
 	// Start encode test
 	BENCHMARK(&start, BENCHMARK_TIME, encode_update_test_ref(m, k, g_tbls, buffs, a));

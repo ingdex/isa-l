@@ -1,0 +1,13 @@
+Window Size: 32 K
+Test Seed  : 4660
+Randoms    : 64
+igzip_rand_test stateless:              ................Pass
+igzip_rand_test stateless FULL_FLUSH:   ................Pass
+igzip_rand_test stateful  NO_FLUSH:     ................Pass
+igzip_rand_test stateful  SYNC_FLUSH:   ................Pass
+igzip_rand_test stateful  FULL_FLUSH:   ................Pass
+igzip_rand_test stateful  Change Flush: ................Pass
+igzip_rand_test large input             ................Pass
+igzip_rand_test inflate   Std Vectors:  ................Pass
+igzip rand test finished: All tests passed
+PASS igzip/igzip_rand_test (exit status: 0)

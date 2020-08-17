@@ -1,0 +1,6 @@
+Test Seed  : 4660
+Randoms    : 16384
+gzip wrapper test: ................Pass 
+zlib wrapper test: ................Pass 
+igzip wrapper_hdr test finished: All tests passed 
+PASS igzip/igzip_wrapper_hdr_test (exit status: 0)

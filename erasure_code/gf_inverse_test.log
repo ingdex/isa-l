@@ -1,0 +1,2 @@
+gf_inverse_test: max=128 ............................ Pass
+PASS erasure_code/gf_inverse_test (exit status: 0)

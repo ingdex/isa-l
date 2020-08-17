@@ -1,0 +1,9 @@
+CRC64 Tests
+Test crc64_ecma_norm	................................................. done: Pass
+Test crc64_ecma_refl	................................................. done: Pass
+Test crc64_iso_norm	................................................. done: Pass
+Test crc64_iso_refl	................................................. done: Pass
+Test crc64_jones_norm	................................................. done: Pass
+Test crc64_jones_refl	................................................. done: Pass
+CRC64 Tests all done: Pass
+PASS crc/crc64_funcs_test (exit status: 0)

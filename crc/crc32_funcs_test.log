@@ -1,0 +1,6 @@
+CRC32 Tests
+Test crc32_ieee	................................................. done: Pass
+Test crc32_gzip_refl	................................................. done: Pass
+Test crc32_iscsi	................................................. done: Pass
+CRC32 Tests all done: Pass
+PASS crc/crc32_funcs_test (exit status: 0)
