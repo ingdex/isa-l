@@ -4,7 +4,7 @@
 ###########################################################
 # 参数
 # 线程数
-threads=(1 2 4 8 16 32)
+threads=(2 4 8 16)
 # threads=(8 16)
 # 每种情况测试次数
 test_time=10
@@ -21,6 +21,9 @@ resultPath=results/${name}_${pattern}_${time}
 echo "测试程序: $path"          > $resultPath
 echo "子线程数-吞吐率(GB/s)"    >> $resultPath
 ###########################################################
+cd ..
+make
+cd test
 rm ./log
 for ((i=0;i<$test_time;i++));
 do

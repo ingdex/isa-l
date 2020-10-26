@@ -21,6 +21,16 @@
             },
             // Use the standard MS compiler pattern to detect errors, warnings and infos
             "problemMatcher": "$msCompile"
+        },
+        {
+            "type": "shell",
+            "label": "run make",
+            "command": "make",
+            "args": [
+            ],
+            "options": {
+                // "cwd": "${workspaceFolder}/build"
+            }
         }
     ]
 }

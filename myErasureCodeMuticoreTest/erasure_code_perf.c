@@ -42,10 +42,10 @@
 #define CACHED_TEST
 #ifdef CACHED_TEST
 // Cached test, loop many times over small dataset
-# define TEST_SOURCES 32
-# define TEST_LEN(m)  ((256*1024 / m) & ~(64-1))
+# define TEST_SOURCES 32	// 最大线程数
+# define TEST_LEN(m)  ((1024*1024*1024 / m) & ~(64-1))	// 编码数据大小
 # define TEST_TYPE_STR "_warm"
-#define REPEAT_TIME 300000
+#define REPEAT_TIME 3000
 #else
 # ifndef TEST_CUSTOM
 // Uncached test.  Pull from large mem base.
@@ -62,9 +62,9 @@
 #define MMAX TEST_SOURCES
 #define KMAX TEST_SOURCES
 
-#define M		16
-#define K		12
-#define NERRS	4
+#define M		20	// 有效数据+校验数据数量
+#define K		18	// 有效数据数量
+#define NERRS	2	// 校验数据数量
 
 #define BAD_MATRIX -1
 
@@ -441,7 +441,7 @@ int main(int argc, char *argv[])
 	m = M;
 	k = K;
 	nerrs = NERRS;
-	const u8 err_list[] = { 2, 4, 5, 7 };
+	const u8 err_list[] = { 1, 2, 3, 4, 5, 7, 10, 11 };
 
 	printf("erasure_code_perf: %dx%d %d\n", m, TEST_LEN(m), nerrs);
 	printf("Threads: %d\n", THREADS);
