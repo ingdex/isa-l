@@ -43,9 +43,10 @@
 #ifdef CACHED_TEST
 // Cached test, loop many times over small dataset
 # define TEST_SOURCES 32	// 最大线程数
-# define TEST_LEN(m)  ((1024*1024*1024 / m) & ~(64-1))	// 编码数据大小
+# define TEST_LEN(m)  ((((long long)4*1024*1024*1024) / m) & ~(64-1))	// 有效数据+校验数据总大小
+# define BLOCK_SIZE	(4*1024)	// 编译码块大小，即每次调用encode函数时传入的buffer的大小
 # define TEST_TYPE_STR "_warm"
-#define REPEAT_TIME 3000
+#define REPEAT_TIME 1
 #else
 # ifndef TEST_CUSTOM
 // Uncached test.  Pull from large mem base.
@@ -79,7 +80,7 @@ typedef struct _threadData
 	u8 * a;
 	u8 * g_tbls;
 	u8 * buffs[TEST_SOURCES];
-	int len;
+	long long len;
 	int repeat_time;
 	// only for decode
 	int nerrs;
@@ -101,11 +102,47 @@ void *encode_thread_handle(void *args)
 	u8 * a = data->a;
 	u8 * g_tbls = data->g_tbls;
 	u8 ** buffs = data->buffs;
-	int len = data->len;
+	u8 *buffs_bak[TEST_SOURCES];
+	if (REPEAT_TIME > 1)
+	{
+		for (int i = 0; i < m; i++)
+		{
+			buffs_bak[i] = buffs[i];
+		}
+	}
+	long long len = data->len;
+	long long chunks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+	long long size;	// 编码块大小
 	// printf("threadId = %d\n", threadId);
 	int iter = 0;
 	while(iter++ < data->repeat_time)
-		ec_encode_data(len, k, m - k, g_tbls, buffs, &buffs[k]);
+	{
+		// ec_encode_data(len, k, m - k, g_tbls, buffs, &buffs[k]);
+		// break;
+		for (long long i = 0; i < chunks; i++)
+		{
+			if (i == chunks - 1)
+			{
+				size = (len % BLOCK_SIZE) ? (len % BLOCK_SIZE) : BLOCK_SIZE;
+			}
+			else
+			{
+				size = BLOCK_SIZE;
+			}
+			ec_encode_data(size, k, m - k, g_tbls, buffs, &buffs[k]);
+			for (int j=0;j<m; j++)
+			{
+				buffs[j] += BLOCK_SIZE;
+			}	
+		}
+		if (REPEAT_TIME > 1)
+		{
+			for (int i = 0; i < m; i++)
+			{
+				buffs[i] = buffs_bak[i];
+			}
+		}
+	}
 	return NULL;
 }
 
@@ -248,13 +285,67 @@ void *decode_thread_handle(void *args)
 	// printf("threadId = %d\n", threadId);
 	int k = data->k;
 	u8 * g_tbls = data->g_tbls;
-	int len = data->len;
+	long long len = data->len;
 	int nerrs = data->nerrs;
 	u8 **recov = data->recov;
-	int iter = 0;
+	u8 *recov_bak[TEST_SOURCES];
+	// int iter = 0;
 	u8 ** temp_buffs = data->temp_buffs;
+	u8 *temp_buffs_bak[TEST_SOURCES];
+	if (REPEAT_TIME > 1)
+	{
+		for (int i=0; i<k; i++)
+		{
+			recov_bak[i] = recov[i];
+		}
+		for (int i=0; i<nerrs; i++)
+		{
+			temp_buffs_bak[i] = temp_buffs[i];
+		}
+	}
+	// while(iter++ < data->repeat_time)
+	// 	ec_encode_data(len, k, nerrs, g_tbls, recov, temp_buffs);
+
+	long long chunks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+	long long size;	// 译码块大小
+	// printf("threadId = %d\n", threadId);
+	int iter = 0;
 	while(iter++ < data->repeat_time)
-		ec_encode_data(len, k, nerrs, g_tbls, recov, temp_buffs);
+	{
+		// ec_encode_data(len, k, nerrs, g_tbls, recov, temp_buffs);
+		// break;
+		for (long long i = 0; i < chunks; i++)
+		{
+			if (i == chunks - 1)
+			{
+				size = (len % BLOCK_SIZE) ? (len % BLOCK_SIZE) : BLOCK_SIZE;
+			}
+			else
+			{
+				size = BLOCK_SIZE;
+			}
+			ec_encode_data(size, k, nerrs, g_tbls, recov, temp_buffs);
+			for (int j=0;j<k; j++)
+			{
+				recov[j] += BLOCK_SIZE;
+			}	
+			for (int j=0;j<nerrs; j++)
+			{
+				temp_buffs[j] += BLOCK_SIZE;
+			}
+		}
+		if (REPEAT_TIME > 1)
+		{
+			for (int i=0; i<k; i++)
+			{
+				recov[i] = recov_bak[i];
+			}
+			for (int i=0; i<nerrs; i++)
+			{
+				temp_buffs[i] = temp_buffs_bak[i];
+			}
+		}
+	}
 	return NULL;
 }
 
@@ -443,7 +534,7 @@ int main(int argc, char *argv[])
 	nerrs = NERRS;
 	const u8 err_list[] = { 1, 2, 3, 4, 5, 7, 10, 11 };
 
-	printf("erasure_code_perf: %dx%d %d\n", m, TEST_LEN(m), nerrs);
+	printf("erasure_code_perf: %dx%lld nerror %d\n", m, TEST_LEN(m), nerrs);
 	printf("Threads: %d\n", THREADS);
 
 	if (m > MMAX || k > KMAX || nerrs > (m - k)) {
@@ -474,7 +565,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Make random data
-	for (i = 0; i < k; i++)
+	for (i = 0; i < 1; i++)	// just one random data, faster
 		for (j = 0; j < TEST_LEN(m); j++)
 			buffs[i][j] = rand();
 
@@ -506,7 +597,7 @@ int main(int argc, char *argv[])
 	}
 
 	printf("decode ended, bandwidth %lld MB in %lf secs\n", ((long long)(TEST_LEN(m)) * (k + nerrs) * REPEAT_TIME) / 1024 / 1024, total);
-	print_throughtput((long long)(TEST_LEN(m)) * (k + nerrs) * REPEAT_TIME, total, "erasure_code_decode" TEST_TYPE_STR ": ");
+	print_throughtput(((long long)(TEST_LEN(m))) * (k + nerrs) * REPEAT_TIME, total, "erasure_code_decode" TEST_TYPE_STR ": ");
 
 	printf("done all: Pass\n");
 	return 0;
