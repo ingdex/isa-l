@@ -5,76 +5,25 @@
 /* 将要编码的数据分割，分配给threads个threadData结构体 */
 void Encoder::initThreadData(Data data, unsigned int threads)
 {
-    alignData(data);
-	// 为校验数据申请内存空间
-    for (int i = this->valid; i < this->m; i++) {
-		if (posix_memalign((void **)&this->buffs[i], 64, this->stripe_size)) {
-            cout << "alloc error: Fail" << endl;
-            exit(1);
-        }
-    }
     // 除了第一个外，每个子线程编译码的长度，当条带所包括的块数量不能被线程数整除时，第一个线程处理更多的编译码块
-    size_t tblocks = this->stripe_blocks / threads; // 下标不为0的线程的编译码块数
-    size_t t0blocks = this->stripe_blocks % threads + tblocks; // 下标为0的线程的编译码块数
+    size_t tblocks = data.getStripeBlocks() / threads; // 下标不为0的线程的编译码块数
+    size_t t0blocks = data.getStripeBlocks() % threads + tblocks; // 下标为0的线程的编译码块数
     size_t off_blocks = 0; // 下标为i的子线程处理的起始块的块偏移
     for (int i = 0; i < threads; i++) {
         this->threadargs[i].threadId = i;
-        this->threadargs[i].m = this->m;
-        this->threadargs[i].valid = this->valid;
-        this->threadargs[i].checks = this->checks;
+        this->threadargs[i].m = data.getM();
+        this->threadargs[i].valid = data.getValid();
+        this->threadargs[i].checks = data.getChecks();
         this->threadargs[i].repeat_time = REPEAT_TIME;
-        this->threadargs[i].gen_matrix = this->gen_matrix;
-        this->threadargs[i].g_tbls = this->g_tbls;
+        this->threadargs[i].gen_matrix = data.getGenMatrix();
+        this->threadargs[i].g_tbls = data.getG_tbls();
         this->threadargs[i].blocks = (i == 0) ? t0blocks : tblocks;
-        this->threadargs[i].block_size = this->block_size;
-        for (int j = 0; j < this->m; j++) {
-            this->threadargs[i].buffs[j] = this->buffs[j] + off_blocks * this->block_size;
+        this->threadargs[i].block_size = data.getBlockSize();
+        for (int j = 0; j < data.getM(); j++) {
+            this->threadargs[i].buffs[j] = data.getStripe(j) + off_blocks * data.getBlockSize();
         }
         off_blocks += this->threadargs[i].blocks;
     }
-}
-
-/* 将data中的数据按照编译码块大小与条带数量对齐，分割为条带，存储到buffs中，同时为校验数据申请存储空间，首地址记录在buffs中 */
-void Encoder::alignData(Data data)
-{
-    /* 将要编码的数据分配给threads个threadData结构体 */
-    if (data.getType() != 0) {
-        cout << "type for data != 0" << endl;
-        exit(0);
-    }
-    size_t data_size = data.getDataSize();
-    // 对齐前数据块的数量
-    size_t total_blocks_before = data_size / this->block_size;
-    if (data_size % this->block_size)
-        total_blocks_before = total_blocks_before + 1;
-    this->stripe_size = data_size / this->valid;
-    // 条带中数据按照块大小对齐
-	if (this->stripe_size % this->block_size)
-	    this->stripe_size += (this->block_size - this->stripe_size % this->block_size);
-    // 对齐后单个条带数据块数量
-    size_t stripe_blocks_after = this->stripe_size / this->block_size;
-    this->stripe_blocks = stripe_blocks_after;
-    /* 缺少的数据补零填充 */
-    // 计算有效数据可以完全填充的条带数量
-    size_t fullfilled_stripes = total_blocks_before / stripe_blocks_after;
-    if (data_size % this->block_size) // 有效数据最后一块末尾被补零
-        fullfilled_stripes = (total_blocks_before - 1) / stripe_blocks_after;
-    this->buffs[0] = data.getBuff();
-    // 填充可以完全填充的条带，使用原有内存空间
-    for (int i = 1; i < fullfilled_stripes; i++) {
-        this->buffs[i] = this->buffs[i - 1] + stripe_size;
-    }
-    // 对于不能完全填充的条带，申请新的内存空间
-    for (int i = fullfilled_stripes; i < this->valid; i++) {
-        if (posix_memalign((void**)&this->buffs[i], 64, this->stripe_size)) {
-            cout << "alloc error: Fail" << endl;
-            exit(1);
-        }
-        memset(this->buffs[i], 0, this->stripe_size);
-    }
-    // 将未填充到条带中的数据写入新申请的空间中
-    size_t piece_size = data_size - fullfilled_stripes * stripe_size;
-    memcpy(this->buffs[fullfilled_stripes], data.getBuff() + stripe_size * fullfilled_stripes, piece_size);
 }
 
 void* Encoder::encode_thread_handle(void* args)
@@ -156,6 +105,8 @@ void Encoder::encode_perf(Data data, unsigned int threads)
             pthread_join(pid[i], &ret[i]);
         }
         totaltime = toc(0);
+        /* 将校验条带中的数据写入校验数据缓冲区data_checks */
+        data.dumpDataChecks();
         // output data array
 // #define PTINT_ENCODE_DATA_INFO
 #ifdef PTINT_ENCODE_DATA_INFO
@@ -180,11 +131,11 @@ void Encoder::encode_perf(Data data, unsigned int threads)
 #endif
     }
     cout << "encode ended, bandwidth "
-         << getEncodeDataSizeMB()
+         << data.getEncodeDataSizeMB()
          << "MB in "
          << totaltime
          << "secs" << endl;
-    print_throughtput(getEncodeDataSize(), totaltime, "erasure_code_encode");
+    print_throughtput(data.getEncodeDataSize(), totaltime, "erasure_code_encode");
     // return total;
 }
 
@@ -226,18 +177,4 @@ void Encoder::print_throughtput(size_t data_size, double time, string info)
          << data_size / time / 1024 / 1024 / 1024
          << "\tGB/s"
          << endl;
-}
-
-/* 获取对齐后的编码总数据长度，单位为Byte，data_size乘以repeat_time */
-size_t Encoder::getEncodeDataSize()
-{
-    size_t data_size = this->stripe_size * this->m * REPEAT_TIME;
-    return data_size;
-}
-
-/* 获取对齐后的编码总数据长度，单位为MB，data_size乘以repeat_time除以10^6 */
-size_t Encoder::getEncodeDataSizeMB()
-{
-    size_t data_size_MB = this->stripe_size * this->m / 1024 / 1024 * REPEAT_TIME;
-    return data_size_MB;
 }
