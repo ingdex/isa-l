@@ -4,6 +4,9 @@
         "cstring": "cpp",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "test.h": "c",
+        "random": "cpp",
+        "iostream": "cpp"
     }
 }

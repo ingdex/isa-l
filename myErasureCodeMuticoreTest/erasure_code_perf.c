@@ -43,7 +43,7 @@
 #ifdef CACHED_TEST
 // Cached test, loop many times over small dataset
 # define TEST_SOURCES 32	// 最大线程数
-# define TEST_LEN(m)  ((((long long)4*1024*1024*1024) / m) & ~(64-1))	// 有效数据+校验数据总大小
+# define TEST_LEN(m)  ((((long long)128*1024*1024*1024) / m) & ~(64-1))	// 有效数据+校验数据总大小
 # define BLOCK_SIZE	(4*1024)	// 编译码块大小，即每次调用encode函数时传入的buffer的大小
 # define TEST_TYPE_STR "_warm"
 #define REPEAT_TIME 1
@@ -565,9 +565,9 @@ int main(int argc, char *argv[])
 	}
 
 	// Make random data
-	for (i = 0; i < 1; i++)	// just one random data, faster
-		for (j = 0; j < TEST_LEN(m); j++)
-			buffs[i][j] = rand();
+	// for (i = 0; i < 1; i++)	// just one random data, faster
+	// 	for (j = 0; j < TEST_LEN(m); j++)
+	// 		buffs[i][j] = rand();
 
 	gf_gen_rs_matrix(a, m, k);
 
