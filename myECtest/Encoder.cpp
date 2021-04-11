@@ -3,9 +3,9 @@
 #include <pthread.h>
 
 /* 将要编码的数据分割，分配给threads个threadData结构体 */
-void Encoder::initThreadData(Data data, unsigned int threads)
+void Encoder::initEncodeThreadData(Data data, unsigned int threads)
 {
-    // 除了第一个外，每个子线程编译码的长度，当条带所包括的块数量不能被线程数整除时，第一个线程处理更多的编译码块
+    // 除了第一个外，每个子线程编译码块的数量，当条带所包括的块数量不能被线程数整除时，第一个线程处理更多的编译码块
     size_t tblocks = data.getStripeBlocks() / threads; // 下标不为0的线程的编译码块数
     size_t t0blocks = data.getStripeBlocks() % threads + tblocks; // 下标为0的线程的编译码块数
     size_t off_blocks = 0; // 下标为i的子线程处理的起始块的块偏移
@@ -71,7 +71,7 @@ void Encoder::encode_perf(Data data, unsigned int threads)
     // single thread
     if (threads < 1) {
         /* threads赋值为0时不创建子线程 */
-        initThreadData(data, 1);
+        initEncodeThreadData(data, 1);
         // encode
         tic(0);
         encode_thread_handle((void*)&(this->threadargs[0]));
@@ -95,7 +95,7 @@ void Encoder::encode_perf(Data data, unsigned int threads)
 		 */
         pthread_t pid[threads];
         void* ret[threads];
-        initThreadData(data, threads);
+        initEncodeThreadData(data, threads);
         // encode
         tic(0);
         for (int i = 0; i < threads; i++) {
@@ -137,6 +137,153 @@ void Encoder::encode_perf(Data data, unsigned int threads)
          << "secs" << endl;
     print_throughtput(data.getEncodeDataSize(), totaltime, "erasure_code_encode");
     // return total;
+}
+
+/* 根据threads用data初始化数据恢复所需的矩阵以及线程参数 */
+bool Encoder::initRecovThreadData(Data data, unsigned int threads) {
+    this->b_matrix = new u8[data.getM() * data.getValid()];
+    this->inverse_matrix = new u8[data.getM() * data.getValid()];
+    this->recover_matrix = new u8[data.getM() * data.getValid()];
+    this->recover_g_tbls = new u8[data.getValid() * MAX_STRIPES * 32];
+    // 获取任意valid个有效的数据条带，以及对应的valid行矩阵，用于数据恢复
+    for (int i=0, r=0; i<data.getValid(); i++, r++) {
+        // 跳过失效条带对应生成矩阵的行
+        while (data.isError(r))
+            r++;
+        this->recover_stripe[i] = data.getStripe(r);
+        for (int j=0; j<data.getValid(); j++)
+            this->b_matrix[data.getValid() * i + j] = data.getGenMatrix(r, j);
+    }
+    // 将需要恢复的nerrs_valid个有效数据条带首地址写入recover_stripe末尾
+    for (int i=0, r=0; i<data.getNerrsValid(); i++, r++) {
+        while (!data.isError(r))
+            r++;
+        this->recover_stripe[data.getValid() + i] = data.getStripe(r);
+    }
+    // 求b_matrix的逆矩阵inverse_matrix
+    if (gf_invert_matrix(this->b_matrix, this->inverse_matrix, data.getValid()) < 0) {
+        delete this->b_matrix;
+        delete this->inverse_matrix;
+        delete this->recover_g_tbls;
+        return false;
+    }
+    // 取出需要恢复的有效数据条带在recover_matrix中对应的行，校验数据的恢复需要使用恢复后的有效数据重新编码得到
+    for (int i = 0, r = 0; i < data.getNerrsValid(); i++, r++) {
+        while (!data.isError(r))
+            r++;
+        for (int j = 0; j < data.getValid(); j++)
+            this->recover_matrix[data.getValid() * i + j] = this->inverse_matrix[data.getValid() * r + j];
+    }
+    ec_init_tables(data.getValid(), data.getNerrsValid(), this->recover_matrix, this->recover_g_tbls);
+    /* 初始化线程参数 */
+    // 除了第一个外，每个子线程恢复的块数量，当条带所包括的块数量不能被线程数整除时，第一个线程处理更多的编译码块
+    size_t tblocks = data.getStripeBlocks() / threads; // 下标不为0的线程的编译码块数
+    size_t t0blocks = data.getStripeBlocks() % threads + tblocks; // 下标为0的线程的编译码块数
+    size_t off_blocks = 0; // 下标为i的子线程处理的起始块的块偏移
+    for (int i = 0; i < threads; i++) {
+        this->threadargs[i].threadId = i;
+        // this->threadargs[i].m = data.getM();
+        this->threadargs[i].valid = data.getValid();
+        this->threadargs[i].nerrs_valid = data.getNerrsValid();
+        // this->threadargs[i].checks = data.getChecks();
+        this->threadargs[i].repeat_time = REPEAT_TIME;
+        // this->threadargs[i].gen_matrix = data.getGenMatrix();
+        this->threadargs[i].g_tbls = this->recover_g_tbls;
+        this->threadargs[i].blocks = (i == 0) ? t0blocks : tblocks;
+        this->threadargs[i].block_size = data.getBlockSize();
+        for (int j = 0; j < data.getValid()+data.getNerrsValid(); j++) {
+            this->threadargs[i].buffs[j] = this->recover_stripe[j] + off_blocks * data.getBlockSize();
+        }
+        off_blocks += this->threadargs[i].blocks;
+    }
+    return true;
+}
+
+/* 子线程数据恢复函数，使用任意k个未失效的数据条带，恢复nerrs_valid个有效数据条带 */
+void *Encoder::recover_thread_handle(void *args) {
+    threadData* data = (threadData*)args;
+    unsigned threadId = data->threadId;
+    u8* recov_bak[MAX_STRIPES];
+    for (int i = 0; i < data->valid+data->nerrs_valid; i++) {
+        recov_bak[i] = data->buffs[i];
+    }
+    int iter = 0;
+    while (iter++ < data->repeat_time) {
+        // ec_encode_data(len, k, m - k, g_tbls, buffs, &buffs[k]);
+        // break;
+        for (size_t i = 0; i < data->blocks; i++) {
+            ec_encode_data(data->block_size, data->valid, data->nerrs_valid, data->g_tbls, recov_bak, &recov_bak[data->valid]);
+            for (int j = 0; j < data->valid+data->nerrs_valid; j++) {
+                recov_bak[j] += data->block_size;
+            }
+        }
+        if (REPEAT_TIME > 1) {
+            for (int i = 0; i < data->valid+data->nerrs_valid; i++) {
+                recov_bak[i] = data->buffs[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+/* 数据恢复 */
+bool Encoder::recover_perf(Data data, unsigned int threads) {
+    if (!data.recoveralble()) {
+        cout << "data has too much errors, cannot be recovered";
+        return false;
+    }
+    cout << "start recover" << endl;
+    double totaltime;
+    // single thread
+    if (threads < 1) {
+        /* threads赋值为0时不创建子线程 */
+        if (!initRecovThreadData(data, 1))
+            return false;
+        // encode
+        tic(0);
+        recover_thread_handle((void*)&(this->threadargs[0]));
+        totaltime = toc(0);
+        /* 将有效数据条带中的数据写入有效数据缓冲区data */
+        data.dumpData();
+    } else {
+        /**
+		 * 多个子线程并行编译码，每个子线程负责一部分
+		 * 示意图：
+		 * 	k个源数据区							m-k个校验数据区（待填充）
+		 * ------------------------------------------------------------------------
+		 * |       |       | ... |       |--|         |         | ... |           |
+		 * | src 1 | src 2 | ... | src k |--| check 1 | check 2 | ... | check m-k |
+		 * |       |       | ... |       |--|         |         | ... |           |
+		 * ------------------------------------------------------------------------
+		 * THREADS个子线程负责区域
+		 * ----------------------------------------------------------------------------------
+		 * | thread 0 | thread 0 | ... | thread 0 |--| thread 0 | thread 0 | ... | thread 0 |
+		 * | thread 1 | thread 1 | ... | thread 1 |--| thread 1 | thread 1 | ... | thread 1 |
+		 * | thread 2 | thread 2 | ... | thread 2 |--| thread 2 | thread 2 | ... | thread 2 |
+		 * ----------------------------------------------------------------------------------
+		 */
+        pthread_t pid[threads];
+        void* ret[threads];
+        if (!initRecovThreadData(data, threads))
+            return false;
+        // decode
+        tic(0);
+        for (int i = 0; i < threads; i++) {
+            pthread_create(&pid[i], NULL, recover_thread_handle, (void*)&(this->threadargs[i]));
+        }
+        for (int i = 0; i < threads; i++) {
+            pthread_join(pid[i], &ret[i]);
+        }
+        totaltime = toc(0);
+        /* 将有效数据条带中的数据写入有效数据缓冲区data */
+        data.dumpData();
+    }
+    cout << "recovery ended, bandwidth "
+         << data.getEncodeDataSizeMB() + data.getNerrsValidDataSizeMB()
+         << "MB in "
+         << totaltime
+         << "secs" << endl;
+    print_throughtput(data.getEncodeDataSize()+data.getNerrsValidDataSize(), totaltime, "erasure_code_encode");
 }
 
 #ifdef GTD

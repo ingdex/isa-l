@@ -18,8 +18,8 @@ using namespace std;
 class Data {
 private:
     int type;               // 仿真模式，待编码数据来自一个文件还是多个文件，0为来自一个文件，data中数据有效，datas中无效
-    u8 *data;				// 待编码数据（模拟对一个文件进行编码）
-    u8 *data_bak;         // 待编码数据备份，用于判断译码结果是否正确
+    u8 *data;				// 有效数据（模拟对一个文件进行编码）
+    u8 *data_bak;         // 有效数据备份，用于判断译码结果是否正确
     u8 *data_check;       // 校验数据
 	size_t data_size;	    // 待编码有效数据长度，单位Byte
 	size_t stripe_size;	    // 一份待编码数据被分为多个条带，一个条带的长度
@@ -34,6 +34,9 @@ private:
     size_t block_size;      // 编译码块大小
     u8 *gen_matrix;         // 生成矩阵
     u8 *g_tbls;             // 辅助编码表格，详见isa-l doc 
+    int nerrs;              // 错误条带数量
+    unsigned int nerrs_valid;        // 有效数据条带中的错误条带数量，数据恢复过程中只有这些数据能通过矩阵的逆运算恢复，校验数据的恢复需要根据恢复的数据重新编码得到
+    u8 stripe_in_error[MAX_STRIPES];   // 错误条带位示图，1代表对应条带数据失效
     // threadData data;
     /* 将data中的数据按照编译码块大小与条带数量对齐，分割为条带，存储到buffs中，同时为校验数据申请存储空间，首地址记录在buffs中 */
     void alignData();
@@ -41,7 +44,7 @@ public:
     Data(size_t data_size, int valid, int checks, size_t block_size) {
         this->type = SINGLESOURCE;
         this->data_size = data_size;
-        if (posix_memalign((void **)&data, 64, this->data_size)) {
+        if (posix_memalign((void **)&data, 64, this->data_size) || posix_memalign((void **)&data_bak, 64, this->data_size)) {
             cout << "alloc error: Fail" << endl;
             exit(1);
         }
@@ -71,8 +74,10 @@ public:
     }
     /* 用随机数初始化Data中的数据 */
     void initRandom();
-    /* 比较目前数据是否和初始化时相同，用于判断译码结果是否正确 */
-    bool same();
+    /* 将data缓冲区中的数据备份到data_bak缓冲区 */
+    void dataBak();
+    /* 比较目前数据是否和备份的数据相同，用于判断译码结果是否正确 */
+    bool isSame();
     /* 获取待编码数据长度 */
     size_t getDataSize();
     /* 获取数据长度，单位为MB */
@@ -81,6 +86,10 @@ public:
     size_t getEncodeDataSize();
     /* 获取条带中有效数据+校验数据总大小，单位为MB，data_size乘以repeat_time除以10^6 */
     size_t getEncodeDataSizeMB();
+    /* 获取条带中失效的有效数据总大小，单位为Byte，data_size乘以repeat_time */
+    size_t getNerrsValidDataSize();
+    /* 获取条带中失效的有效数据总大小，单位为MB，data_size乘以repeat_time除以10^6 */
+    size_t getNerrsValidDataSizeMB();
     /* 获取一个条带中的数据块数量 */
     size_t getStripeBlocks();
     /* 获取校验数据和待编码数据总条带数 */
@@ -99,12 +108,26 @@ public:
     u8 *getStripe(int index);
     /* 获取生成矩阵 */
     u8 *getGenMatrix();
+    /* 获取生成矩阵中的第i行第j列的数字 */
+    u8 getGenMatrix(unsigned int i, unsigned int j);
     /* 获取编译码复制表格 */
     u8 *getG_tbls();
     /* 将条带中的有效数据写入数据缓冲区data */
     void dumpData();
     /* 将校验条带中的数据写入校验数据缓冲区data_checks */
     void dumpDataChecks();
+    /* 设置错误条带 */
+    bool setError(int nerrs, int *stripe_err_list);
+    /* 设置错误条带，并将对应条带中的数据随机改写 */
+    bool setErrorAndDestroy(int nerrs, int *stripe_err_list);
+    /* 判断下标为index的条带数据是否失效，失效返回true，否则返回true */
+    bool isError(unsigned int index);
+    /* 判断数据是否可恢复，可恢复返回true，不可恢复返回false */
+    bool recoveralble();
+    /* 获取失效数据条带的数量 */
+    unsigned int getNerrs();
+    /* 获取失效的有效数据条带的数量 */
+    unsigned int getNerrsValid();
 };
 
 #endif
