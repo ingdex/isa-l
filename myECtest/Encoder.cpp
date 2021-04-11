@@ -17,12 +17,12 @@ void Encoder::initEncodeThreadData(Data data, unsigned int threads)
         this->threadargs[i].repeat_time = REPEAT_TIME;
         this->threadargs[i].gen_matrix = data.getGenMatrix();
         this->threadargs[i].g_tbls = data.getG_tbls();
-        this->threadargs[i].blocks = (i == 0) ? t0blocks : tblocks;
+        this->threadargs[i].stripe_blocks = (i == 0) ? t0blocks : tblocks;
         this->threadargs[i].block_size = data.getBlockSize();
         for (int j = 0; j < data.getM(); j++) {
             this->threadargs[i].buffs[j] = data.getStripe(j) + off_blocks * data.getBlockSize();
         }
-        off_blocks += this->threadargs[i].blocks;
+        off_blocks += this->threadargs[i].stripe_blocks;
     }
 }
 
@@ -49,7 +49,7 @@ void* Encoder::encode_thread_handle(void* args)
     while (iter++ < data->repeat_time) {
         // ec_encode_data(len, k, m - k, g_tbls, buffs, &buffs[k]);
         // break;
-        for (size_t i = 0; i < data->blocks; i++) {
+        for (size_t i = 0; i < data->stripe_blocks; i++) {
             ec_encode_data(data->block_size, data->valid, data->checks, data->g_tbls, buffs_bak, &buffs_bak[data->valid]);
             for (int j = 0; j < data->m; j++) {
                 buffs_bak[j] += data->block_size;
@@ -189,12 +189,12 @@ bool Encoder::initRecovThreadData(Data data, unsigned int threads) {
         this->threadargs[i].repeat_time = REPEAT_TIME;
         // this->threadargs[i].gen_matrix = data.getGenMatrix();
         this->threadargs[i].g_tbls = this->recover_g_tbls;
-        this->threadargs[i].blocks = (i == 0) ? t0blocks : tblocks;
+        this->threadargs[i].stripe_blocks = (i == 0) ? t0blocks : tblocks;
         this->threadargs[i].block_size = data.getBlockSize();
         for (int j = 0; j < data.getValid()+data.getNerrsValid(); j++) {
             this->threadargs[i].buffs[j] = this->recover_stripe[j] + off_blocks * data.getBlockSize();
         }
-        off_blocks += this->threadargs[i].blocks;
+        off_blocks += this->threadargs[i].stripe_blocks;
     }
     return true;
 }
@@ -211,7 +211,7 @@ void *Encoder::recover_thread_handle(void *args) {
     while (iter++ < data->repeat_time) {
         // ec_encode_data(len, k, m - k, g_tbls, buffs, &buffs[k]);
         // break;
-        for (size_t i = 0; i < data->blocks; i++) {
+        for (size_t i = 0; i < data->stripe_blocks; i++) {
             ec_encode_data(data->block_size, data->valid, data->nerrs_valid, data->g_tbls, recov_bak, &recov_bak[data->valid]);
             for (int j = 0; j < data->valid+data->nerrs_valid; j++) {
                 recov_bak[j] += data->block_size;
@@ -279,11 +279,11 @@ bool Encoder::recover_perf(Data data, unsigned int threads) {
         data.dumpData();
     }
     cout << "recovery ended, bandwidth "
-         << data.getEncodeDataSizeMB() + data.getNerrsValidDataSizeMB()
+         << data.getEncodeDataSizeMB()
          << "MB in "
          << totaltime
          << "secs" << endl;
-    print_throughtput(data.getEncodeDataSize()+data.getNerrsValidDataSize(), totaltime, "erasure_code_encode");
+    print_throughtput(data.getEncodeDataSize(), totaltime, "erasure_code_encode");
 }
 
 #ifdef GTD

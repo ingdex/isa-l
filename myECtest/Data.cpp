@@ -212,7 +212,7 @@ bool Data::setErrorAndDestroy(int nerrs, int *stripe_err_list) {
         stripe[pos] = 1;
         cout << " change to " << (unsigned int)stripe[pos] << endl;
         if (this->stripe_size * stripe_err_list[i] + pos < this->data_size) {
-            cout << "data[" << (unsigned int)(this->stripe_size * stripe_err_list[i] + pos) << "] from " << (unsigned int)data[this->stripe_size * stripe_err_list[i] + pos] << " change to " << (unsigned int)stripe[pos] << endl;
+            cout << "data[" << (unsigned int)(this->stripe_size * stripe_err_list[i] + pos) << " change to " << (unsigned int)stripe[pos] << endl;
             data[this->stripe_size * stripe_err_list[i] + pos] = stripe[pos];
         }
     }

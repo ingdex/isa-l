@@ -33,7 +33,7 @@ typedef struct _threadData {
     int valid;
     int checks;
     size_t block_size;     // 
-    size_t blocks;
+    size_t stripe_blocks;
     int repeat_time;
     unsigned int nerrs;              // 错误条带数量
     unsigned int nerrs_valid;        // 有效数据条带中的错误条带数量
